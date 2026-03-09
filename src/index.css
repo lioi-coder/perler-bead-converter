@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply text-zinc-900 bg-zinc-50;
+    font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  }
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-zinc-200 rounded-full hover:bg-zinc-300 transition-colors;
+}
+
+/* Grid Cell Hover Animation */
+.grid-cell-hover {
+  transition: transform 0.1s ease-in-out;
+}
+
+.grid-cell-hover:hover {
+  transform: scale(1.1);
+  z-index: 10;
+}
