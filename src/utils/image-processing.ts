@@ -23,7 +23,7 @@ export const boostSaturation = (data: Uint8ClampedArray, saturation: number = 1.
  * Adjusts brightness and contrast (OpenCV-like convertScaleAbs)
  * result = alpha * pixel + beta
  */
-export const convertScaleAbs = (data: Uint8ClampedArray, alpha: number = 1.3, beta: number = 20) => {
+export const convertScaleAbs = (data: Uint8ClampedArray, alpha: number = 1.1, beta: number = 10) => {
   for (let i = 0; i < data.length; i += 4) {
     data[i] = Math.min(255, Math.max(0, data[i] * alpha + beta));
     data[i + 1] = Math.min(255, Math.max(0, data[i + 1] * alpha + beta));
