@@ -1,22 +1,37 @@
 import { PerlerColor } from '../types';
 
 /**
- * Boosts color saturation
- * saturation: 1.0 is original, > 1.0 increases saturation
+ * Pixelate image by downsampling then upsampling (Box Filter)
  */
-export const boostSaturation = (data: Uint8ClampedArray, saturation: number = 1.4) => {
-  for (let i = 0; i < data.length; i += 4) {
-    const r = data[i];
-    const g = data[i + 1];
-    const b = data[i + 2];
+export const pixelateImage = (data: Uint8ClampedArray, width: number, height: number, pixelSize: number = 4) => {
+  const w = Math.floor(width / pixelSize);
+  const h = Math.floor(height / pixelSize);
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = w;
+  tempCanvas.height = h;
+  const tempCtx = tempCanvas.getContext('2d');
+  if (!tempCtx) return;
 
-    // Convert to HSL (simplified version using grayscale as L)
-    const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-    
-    data[i] = Math.min(255, Math.max(0, gray + (r - gray) * saturation));
-    data[i + 1] = Math.min(255, Math.max(0, gray + (g - gray) * saturation));
-    data[i + 2] = Math.min(255, Math.max(0, gray + (b - gray) * saturation));
-  }
+  const imgData = new ImageData(new Uint8ClampedArray(data), width, height);
+  
+  // Create an offscreen canvas to hold original data
+  const offCanvas = document.createElement('canvas');
+  offCanvas.width = width;
+  offCanvas.height = height;
+  const offCtx = offCanvas.getContext('2d');
+  if (!offCtx) return;
+  offCtx.putImageData(imgData, 0, 0);
+
+  // Downsample (this automatically does box filtering/averaging)
+  tempCtx.drawImage(offCanvas, 0, 0, w, h);
+  
+  // Upsample back to original size (nearest neighbor)
+  offCtx.imageSmoothingEnabled = false;
+  offCtx.clearRect(0, 0, width, height);
+  offCtx.drawImage(tempCanvas, 0, 0, width, height);
+  
+  const result = offCtx.getImageData(0, 0, width, height);
+  data.set(result.data);
 };
 
 /**

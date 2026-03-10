@@ -10,7 +10,7 @@ import {
   sharpenGrid,
   convertScaleAbs,
   sharpenImage,
-  boostSaturation
+  pixelateImage
 } from './image-processing';
 
 /**
@@ -213,9 +213,10 @@ export const processImage = async (
       const data = originalImageData.data;
 
       // 1. Image Enhancement (Pre-processing)
-      // Skipped to maintain original color fidelity
-      // convertScaleAbs(data, 1.05, 5);
-      // boostSaturation(data, 1.1);
+      // First, pixelate the image to simplify details (Box Filter effect)
+      // This helps in reducing noise and grouping similar colors
+      const pixelSize = Math.max(1, Math.floor(Math.min(img.width, img.height) / 100));
+      pixelateImage(data, img.width, img.height, pixelSize);
       
       // 3x3 Sharpening (Keep slight sharpening for definition)
       sharpenImage(data, img.width, img.height);
