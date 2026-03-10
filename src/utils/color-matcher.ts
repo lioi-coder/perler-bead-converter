@@ -213,11 +213,11 @@ export const processImage = async (
       const data = originalImageData.data;
 
       // 1. Image Enhancement (Pre-processing)
-      // OpenCV-like convertScaleAbs (alpha=1.05, beta=5) - Milder contrast/brightness
-      convertScaleAbs(data, 1.05, 5);
-      // Boost Saturation to make colors pop (saturation=1.1) - Milder saturation
-      boostSaturation(data, 1.1);
-      // 3x3 Sharpening
+      // Skipped to maintain original color fidelity
+      // convertScaleAbs(data, 1.05, 5);
+      // boostSaturation(data, 1.1);
+      
+      // 3x3 Sharpening (Keep slight sharpening for definition)
       sharpenImage(data, img.width, img.height);
 
       // 2. CLAHE Contrast Enhancement
