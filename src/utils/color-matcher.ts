@@ -213,10 +213,10 @@ export const processImage = async (
       const data = originalImageData.data;
 
       // 1. Image Enhancement (Pre-processing)
-      // OpenCV-like convertScaleAbs (alpha=1.5, beta=15)
-      convertScaleAbs(data, 1.5, 15);
-      // Boost Saturation to make colors pop (saturation=1.5)
-      boostSaturation(data, 1.5);
+      // OpenCV-like convertScaleAbs (alpha=1.05, beta=5) - Milder contrast/brightness
+      convertScaleAbs(data, 1.05, 5);
+      // Boost Saturation to make colors pop (saturation=1.1) - Milder saturation
+      boostSaturation(data, 1.1);
       // 3x3 Sharpening
       sharpenImage(data, img.width, img.height);
 
@@ -283,11 +283,11 @@ export const processImage = async (
               options.algorithm
             );
 
-            // 5. Gamma correction (gamma=0.8) - applied after quantization to adjust brightness
+            // 5. Gamma correction (gamma=1.0) - No aggressive gamma
             // We apply it and find the closest Perler color again
             const rgb = hexToRgb(closest.hex);
             if (rgb) {
-              const gammaCorrected = applyGamma(rgb.r, rgb.g, rgb.b, 0.8);
+              const gammaCorrected = applyGamma(rgb.r, rgb.g, rgb.b, 1.0);
               closest = findClosestPerlerColor(
                 Math.round(gammaCorrected.r), 
                 Math.round(gammaCorrected.g), 

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Download, MousePointer2, Eraser, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { useStore } from '../store/useStore';
@@ -12,6 +12,13 @@ const Preview: React.FC = () => {
   const [isErasing, setIsErasing] = useState(false);
   const [zoom, setZoom] = useState(1);
   const gridRef = useRef<HTMLDivElement>(null);
+
+  // Map hex codes to bead codes for fast lookup
+  const colorCodeMap = useMemo(() => {
+    const map = new Map<string, string>();
+    PERLER_COLORS.forEach(c => map.set(c.hex, c.code));
+    return map;
+  }, []);
 
   if (grid.length === 0) {
     return (
@@ -97,11 +104,23 @@ const Preview: React.FC = () => {
                   key={`${x}-${y}`}
                   onClick={() => handleCellClick(x, y)}
                   className={cn(
-                    "w-full h-full border-[0.5px] border-zinc-200 cursor-crosshair transition-colors hover:opacity-80",
+                    "w-full h-full border-[0.5px] border-zinc-200 cursor-crosshair transition-colors hover:opacity-80 flex items-center justify-center overflow-hidden",
                     color === 'transparent' ? "bg-[url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAAXNSR0IArs4c6QAAAC1JREFUGFdjZEACDAwM/xkYGBgY4AKMIAFGEA8mABRkBAowgAUYQAKMIAFGEA8mAI0VBAV6+IunAAAAAElFTkSuQmCC')] bg-repeat" : ""
                   )}
                   style={{ backgroundColor: color !== 'transparent' ? color : undefined }}
-                />
+                >
+                  {color !== 'transparent' && zoom >= 1.5 && (
+                    <span 
+                      className="text-[8px] font-bold select-none pointer-events-none drop-shadow-md"
+                      style={{ 
+                        color: parseInt(color.replace('#', ''), 16) > 0xffffff / 2 ? '#000' : '#fff',
+                        fontSize: `${Math.max(6, 4 * zoom)}px`
+                      }}
+                    >
+                      {colorCodeMap.get(color)}
+                    </span>
+                  )}
+                </div>
               ))
             ))}
           </div>
