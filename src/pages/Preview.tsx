@@ -114,10 +114,10 @@ const Preview: React.FC = () => {
                       className="font-bold select-none pointer-events-none drop-shadow-md flex items-center justify-center w-full h-full leading-none"
                       style={{ 
                         color: parseInt(color.replace('#', ''), 16) > 0xffffff / 2 ? '#000' : '#fff',
-                        fontSize: `${Math.max(8, 6 * zoom)}px`
+                        fontSize: `${Math.max(6, 4 * zoom)}px`
                       }}
                     >
-                      {colorCodeMap.get(color)}
+                      {colorCodeMap.get(color)?.replace('M', '')}
                     </span>
                   )}
                 </div>
