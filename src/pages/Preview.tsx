@@ -109,17 +109,7 @@ const Preview: React.FC = () => {
                   )}
                   style={{ backgroundColor: color !== 'transparent' ? color : undefined }}
                 >
-                  {color !== 'transparent' && zoom >= 0.8 && (
-                    <span 
-                      className="font-bold select-none pointer-events-none drop-shadow-md flex items-center justify-center w-full h-full leading-none"
-                      style={{ 
-                        color: parseInt(color.replace('#', ''), 16) > 0xffffff / 2 ? '#000' : '#fff',
-                        fontSize: `${Math.max(6, 4 * zoom)}px`
-                      }}
-                    >
-                      {colorCodeMap.get(color)?.replace('M', '')}
-                    </span>
-                  )}
+                  {/* Color codes removed as per request */}
                 </div>
               ))
             ))}
