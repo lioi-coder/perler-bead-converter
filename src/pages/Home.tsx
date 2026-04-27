@@ -144,6 +144,33 @@ const Home: React.FC = () => {
             </div>
 
             <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-2">颜色数量上限</label>
+              <div className="grid grid-cols-5 gap-2">
+                {[
+                  { value: 0, label: '不限' },
+                  { value: 16, label: '16' },
+                  { value: 24, label: '24' },
+                  { value: 32, label: '32' },
+                  { value: 48, label: '48' },
+                ].map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setOptions({ maxColors: opt.value })}
+                    className={cn(
+                      'px-2 py-2 rounded-lg text-sm font-medium transition-all',
+                      options.maxColors === opt.value
+                        ? 'bg-orange-600 text-white shadow-md'
+                        : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-zinc-500 mt-2">"不限"会保留所有匹配到的色号(最忠实于原图);限制色数适合追求简洁/节省豆子。</p>
+            </div>
+
+            <div>
               <label className="block text-sm font-medium text-zinc-700 mb-2">画布规格</label>
               <div className="p-3 bg-zinc-50 rounded-lg text-sm text-zinc-600 border border-zinc-200">
                 固定规格: 52 × 52 (2.6mm 豆子)

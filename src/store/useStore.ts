@@ -23,6 +23,7 @@ const initialOptions: ConversionOptions = {
   algorithm: 'precise',
   transparency: true,
   gridSize: 52,
+  maxColors: 0, // 0 = unlimited (faithful colors)
 };
 
 export const useStore = create<AppStore>((set, get) => ({
@@ -76,7 +77,8 @@ export const useStore = create<AppStore>((set, get) => ({
     try {
       const { grid, stats } = await processImage(originalImage, options.gridSize, {
         transparency: options.transparency,
-        algorithm: options.algorithm
+        algorithm: options.algorithm,
+        maxColors: options.maxColors,
       });
       set({ grid, colorStats: stats, isProcessing: false });
     } catch (error) {

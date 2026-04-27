@@ -1,17 +1,5 @@
 import { PERLER_COLORS } from '../constants/perler-colors';
 import { PerlerColor, ColorStats } from '../types';
-import { 
-  applyCLAHE, 
-  toGrayscale, 
-  sobel, 
-  dilate, 
-  applyGamma, 
-  reducePalette, 
-  sharpenGrid,
-  convertScaleAbs,
-  sharpenImage,
-  pixelateImage
-} from './image-processing';
 
 /**
  * Converts hex color string to RGB object
@@ -179,168 +167,149 @@ export const findClosestPerlerColor = (
 };
 
 /**
- * Processes an image and converts it to a 52x52 grid of Perler colors
+ * Reduce the grid to at most maxColors distinct Perler colors.
+ * Strategy: keep the maxColors most-used colors, remap any other cell
+ * to the nearest kept color in CIE Lab (Delta E 2000) space.
+ */
+const limitPalette = (
+  grid: string[][],
+  maxColors: number,
+  algorithm: 'precise' | 'approximate'
+): string[][] => {
+  // Count usage per hex
+  const counts = new Map<string, number>();
+  for (const row of grid) {
+    for (const cell of row) {
+      if (cell === 'transparent') continue;
+      counts.set(cell, (counts.get(cell) || 0) + 1);
+    }
+  }
+  if (counts.size <= maxColors) return grid;
+
+  const kept = Array.from(counts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, maxColors)
+    .map(([hex]) => hex);
+  const keptSet = new Set(kept);
+
+  // Pre-compute Lab for kept colors
+  const keptLab = kept.map(hex => {
+    const rgb = hexToRgb(hex)!;
+    return { hex, lab: rgbToLab(rgb.r, rgb.g, rgb.b) };
+  });
+
+  // Cache remap decisions to avoid repeated work
+  const cache = new Map<string, string>();
+
+  return grid.map(row => row.map(cell => {
+    if (cell === 'transparent' || keptSet.has(cell)) return cell;
+    const cached = cache.get(cell);
+    if (cached) return cached;
+
+    const rgb = hexToRgb(cell)!;
+    const targetLab = rgbToLab(rgb.r, rgb.g, rgb.b);
+    let best = keptLab[0].hex;
+    let bestDist = Infinity;
+    for (const k of keptLab) {
+      const dist = algorithm === 'precise'
+        ? calculateDeltaE2000(targetLab, k.lab)
+        : Math.pow(targetLab.L - k.lab.L, 2)
+          + Math.pow(targetLab.a - k.lab.a, 2)
+          + Math.pow(targetLab.b - k.lab.b, 2);
+      if (dist < bestDist) { bestDist = dist; best = k.hex; }
+    }
+    cache.set(cell, best);
+    return best;
+  }));
+};
+
+/**
+ * Convert an image into a gridSize × gridSize chart of Perler bead hex codes.
+ *
+ * Pipeline (deliberately simple to keep colors faithful):
+ *  1. Cover-fit the source image to a square gridSize × gridSize canvas using
+ *     the browser's high-quality downscaler (effectively a box filter).
+ *  2. For each of the gridSize² pixels, find the nearest Perler color via
+ *     CIE Lab Delta E 2000 (or CIE76 for the fast path).
+ *  3. Optional palette reduction to at most options.maxColors distinct beads.
  */
 export const processImage = async (
   imageSrc: string,
   gridSize: number = 52,
-  options: { transparency: boolean, algorithm: 'precise' | 'approximate' } = { transparency: true, algorithm: 'precise' }
+  options: {
+    transparency: boolean;
+    algorithm: 'precise' | 'approximate';
+    maxColors?: number;
+    alphaThreshold?: number;
+  } = { transparency: true, algorithm: 'precise' }
 ): Promise<{ grid: string[][], stats: ColorStats[] }> => {
+  const alphaThreshold = options.alphaThreshold ?? 128;
+  const maxColors = options.maxColors ?? 0; // 0 ⇒ unlimited
+
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = 'Anonymous';
     img.onload = () => {
       const canvas = document.createElement('canvas');
+      canvas.width = gridSize;
+      canvas.height = gridSize;
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
       if (!ctx) {
         reject(new Error('Could not get canvas context'));
         return;
       }
 
-      // Use a temporary canvas to get original image data
-      const tempCanvas = document.createElement('canvas');
-      const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
-      if (!tempCtx) {
-        reject(new Error('Could not get temp canvas context'));
-        return;
-      }
+      // High-quality downscale (browser native Lanczos/box filter)
+      ctx.imageSmoothingEnabled = true;
+      // @ts-ignore - imageSmoothingQuality is supported in modern browsers
+      ctx.imageSmoothingQuality = 'high';
 
-      tempCanvas.width = img.width;
-      tempCanvas.height = img.height;
-      tempCtx.drawImage(img, 0, 0);
+      // Cover-fit: preserve aspect ratio, crop to square (matches user's mental
+      // model that the chart is square; padding would waste beads).
+      const srcSize = Math.min(img.width, img.height);
+      const sx = (img.width - srcSize) / 2;
+      const sy = (img.height - srcSize) / 2;
+      ctx.clearRect(0, 0, gridSize, gridSize);
+      ctx.drawImage(img, sx, sy, srcSize, srcSize, 0, 0, gridSize, gridSize);
 
-      const originalImageData = tempCtx.getImageData(0, 0, img.width, img.height);
-      const data = originalImageData.data;
+      const { data } = ctx.getImageData(0, 0, gridSize, gridSize);
 
-      // 1. Image Enhancement (Pre-processing)
-      // First, pixelate the image to simplify details (Box Filter effect)
-      // This helps in reducing noise and grouping similar colors
-      const pixelSize = Math.max(1, Math.floor(Math.min(img.width, img.height) / 100));
-      pixelateImage(data, img.width, img.height, pixelSize);
-      
-      // 3x3 Sharpening (Keep slight sharpening for definition)
-      sharpenImage(data, img.width, img.height);
-
-      // 2. CLAHE Contrast Enhancement
-      applyCLAHE(data, img.width, img.height);
-
-      // 3. Calculate Edge Map (Sobel)
-      const gray = toGrayscale(data, img.width, img.height);
-      const edges = sobel(gray, img.width, img.height);
-
+      // Build the grid
       const grid: string[][] = [];
-      const rawStatsMap: Map<string, number> = new Map();
-
-      // Calculate the size of each block in the original image
-      const blockWidth = img.width / gridSize;
-      const blockHeight = img.height / gridSize;
-
       for (let y = 0; y < gridSize; y++) {
         const row: string[] = [];
         for (let x = 0; x < gridSize; x++) {
-          const startX = Math.floor(x * blockWidth);
-          const startY = Math.floor(y * blockHeight);
-          const endX = Math.floor((x + 1) * blockWidth);
-          const endY = Math.floor((y + 1) * blockHeight);
-
-          let rSum = 0, gSum = 0, bSum = 0, aSum = 0, weightSum = 0;
-          let pixelCount = 0;
-
-          for (let py = startY; py < endY; py++) {
-            for (let px = startX; px < endX; px++) {
-              const i = (py * img.width + px) * 4;
-              const r = data[i];
-              const g = data[i + 1];
-              const b = data[i + 2];
-              const a = data[i + 3];
-              
-              // 3. Edge-weighted average
-              const edgeWeight = 1.0 + (edges[py * img.width + px] / 255.0) * 5.0;
-              
-              rSum += r * edgeWeight;
-              gSum += g * edgeWeight;
-              bSum += b * edgeWeight;
-              aSum += a;
-              weightSum += edgeWeight;
-              pixelCount++;
-            }
-          }
-
-          const rAvg = rSum / weightSum;
-          const gAvg = gSum / weightSum;
-          const bAvg = bSum / weightSum;
-          const aAvg = aSum / pixelCount;
-
-          let colorHex: string;
-
-          if (options.transparency && aAvg < 128) {
-            colorHex = 'transparent';
+          const i = (y * gridSize + x) * 4;
+          const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
+          if (options.transparency && a < alphaThreshold) {
+            row.push('transparent');
           } else {
-            // 4. DeltaE2000 Quantization
-            let closest = findClosestPerlerColor(
-              Math.round(rAvg), 
-              Math.round(gAvg), 
-              Math.round(bAvg), 
-              options.algorithm
-            );
-
-            // 5. Gamma correction (gamma=1.0) - No aggressive gamma
-            // We apply it and find the closest Perler color again
-            const rgb = hexToRgb(closest.hex);
-            if (rgb) {
-              const gammaCorrected = applyGamma(rgb.r, rgb.g, rgb.b, 1.0);
-              closest = findClosestPerlerColor(
-                Math.round(gammaCorrected.r), 
-                Math.round(gammaCorrected.g), 
-                Math.round(gammaCorrected.b), 
-                options.algorithm
-              );
-            }
-
-            colorHex = closest.hex;
-            rawStatsMap.set(closest.id, (rawStatsMap.get(closest.id) || 0) + 1);
+            const closest = findClosestPerlerColor(r, g, b, options.algorithm);
+            row.push(closest.hex);
           }
-          row.push(colorHex);
         }
         grid.push(row);
       }
 
-      // 6. Limit final color count (16~24)
-      const initialStats: any[] = Array.from(rawStatsMap.entries()).map(([id, count]) => {
-        const color = PERLER_COLORS.find(c => c.id === id)!;
-        return {
-          ...color,
-          count,
-          percentage: (count / (gridSize * gridSize)) * 100
-        };
-      });
+      // Optional palette reduction
+      const finalGrid = maxColors > 0 ? limitPalette(grid, maxColors, options.algorithm) : grid;
 
-      let finalGrid = reducePalette(grid, initialStats, 24);
-
-      // 7. Final sharpening processing
-      finalGrid = sharpenGrid(finalGrid);
-
-      // Re-calculate final stats after palette reduction
-      const finalStatsMap: Map<string, number> = new Map();
+      // Compute stats
+      const statsMap = new Map<string, number>();
       for (const row of finalGrid) {
         for (const cell of row) {
-          if (cell !== 'transparent') {
-            const color = PERLER_COLORS.find(c => c.hex === cell)!;
-            finalStatsMap.set(color.id, (finalStatsMap.get(color.id) || 0) + 1);
-          }
+          if (cell !== 'transparent') statsMap.set(cell, (statsMap.get(cell) || 0) + 1);
         }
       }
+      const total = Array.from(statsMap.values()).reduce((s, n) => s + n, 0) || 1;
+      const stats: ColorStats[] = Array.from(statsMap.entries())
+        .map(([hex, count]) => {
+          const color = PERLER_COLORS.find(c => c.hex === hex)!;
+          return { ...color, count, percentage: (count / total) * 100 };
+        })
+        .sort((a, b) => b.count - a.count);
 
-      const finalStats: ColorStats[] = Array.from(finalStatsMap.entries()).map(([id, count]) => {
-        const color = PERLER_COLORS.find(c => c.id === id)!;
-        return {
-          ...color,
-          count,
-          percentage: (count / (gridSize * gridSize)) * 100
-        };
-      }).sort((a, b) => b.count - a.count);
-
-      resolve({ grid: finalGrid, stats: finalStats });
+      resolve({ grid: finalGrid, stats });
     };
     img.onerror = () => reject(new Error('Failed to load image'));
     img.src = imageSrc;

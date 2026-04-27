@@ -14,6 +14,7 @@ export interface ConversionOptions {
   algorithm: 'precise' | 'approximate';
   transparency: boolean;
   gridSize: number; // 52
+  maxColors: number; // 0 = unlimited
 }
 
 export interface ProjectState {
