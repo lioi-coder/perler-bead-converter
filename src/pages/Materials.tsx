@@ -110,8 +110,8 @@ const Materials: React.FC = () => {
           <p className="text-3xl font-bold text-blue-900">{colorStats.length}</p>
         </div>
         <div className="bg-purple-50 p-6 rounded-2xl border border-purple-100">
-          <p className="text-sm text-purple-600 font-medium mb-1">预计板数</p>
-          <p className="text-3xl font-bold text-purple-900">1 (52×52)</p>
+          <p className="text-sm text-purple-600 font-medium mb-1">画布规格</p>
+          <p className="text-3xl font-bold text-purple-900">{grid.length}×{grid.length}</p>
         </div>
       </div>
 
