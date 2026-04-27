@@ -210,6 +210,25 @@ const Home: React.FC = () => {
               </button>
             </div>
 
+            <div className="flex items-center justify-between p-4 bg-zinc-50 rounded-xl">
+              <div>
+                <p className="text-sm font-medium text-zinc-900">色彩增强</p>
+                <p className="text-xs text-zinc-500">提升饱和度和对比度,避免照片输出发灰</p>
+              </div>
+              <button
+                onClick={() => setOptions({ enhance: !options.enhance })}
+                className={cn(
+                  "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none",
+                  options.enhance ? "bg-orange-600" : "bg-zinc-300"
+                )}
+              >
+                <span className={cn(
+                  "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                  options.enhance ? "translate-x-6" : "translate-x-1"
+                )} />
+              </button>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-zinc-700 mb-2">颜色数量上限</label>
               <div className="grid grid-cols-5 gap-2">

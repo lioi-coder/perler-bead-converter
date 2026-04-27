@@ -241,10 +241,12 @@ export const processImage = async (
     algorithm: 'precise' | 'approximate';
     maxColors?: number;
     alphaThreshold?: number;
+    enhance?: boolean;
   } = { transparency: true, algorithm: 'precise' }
 ): Promise<{ grid: string[][], stats: ColorStats[] }> => {
   const alphaThreshold = options.alphaThreshold ?? 128;
   const maxColors = options.maxColors ?? 0; // 0 ⇒ unlimited
+  const enhance = options.enhance ?? false;
 
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -264,6 +266,15 @@ export const processImage = async (
       // @ts-ignore - imageSmoothingQuality is supported in modern browsers
       ctx.imageSmoothingQuality = 'high';
 
+      // Optional gentle saturation+contrast boost. Helps photo input where
+      // subtle off-whites would otherwise quantize to a noisy mass of nearly
+      // identical pale grays. Browsers (Chrome/Firefox/Safari ≥ 18) all
+      // support ctx.filter; if not, this is a silent no-op.
+      if (enhance) {
+        // @ts-ignore - filter is widely supported on 2D contexts
+        ctx.filter = 'saturate(1.3) contrast(1.1)';
+      }
+
       // Cover-fit: preserve aspect ratio, crop to square (matches user's mental
       // model that the chart is square; padding would waste beads).
       const srcSize = Math.min(img.width, img.height);
@@ -271,6 +282,10 @@ export const processImage = async (
       const sy = (img.height - srcSize) / 2;
       ctx.clearRect(0, 0, gridSize, gridSize);
       ctx.drawImage(img, sx, sy, srcSize, srcSize, 0, 0, gridSize, gridSize);
+
+      // Reset filter so it doesn't leak into any subsequent canvas usage.
+      // @ts-ignore
+      ctx.filter = 'none';
 
       const { data } = ctx.getImageData(0, 0, gridSize, gridSize);
 

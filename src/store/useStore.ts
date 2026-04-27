@@ -24,6 +24,7 @@ const initialOptions: ConversionOptions = {
   transparency: true,
   gridSize: 52,
   maxColors: 0, // 0 = unlimited (faithful colors)
+  enhance: true, // recommended for photos to avoid washed-out grays
 };
 
 export const useStore = create<AppStore>((set, get) => ({
@@ -79,6 +80,7 @@ export const useStore = create<AppStore>((set, get) => ({
         transparency: options.transparency,
         algorithm: options.algorithm,
         maxColors: options.maxColors,
+        enhance: options.enhance,
       });
       set({ grid, colorStats: stats, isProcessing: false });
     } catch (error) {

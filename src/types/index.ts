@@ -15,6 +15,7 @@ export interface ConversionOptions {
   transparency: boolean;
   gridSize: number; // 52
   maxColors: number; // 0 = unlimited
+  enhance: boolean; // saturation+contrast boost before quantization
 }
 
 export interface ProjectState {

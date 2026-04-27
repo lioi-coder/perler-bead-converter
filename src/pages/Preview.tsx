@@ -114,11 +114,11 @@ const Preview: React.FC = () => {
     }
     ctx.stroke();
 
-    // Major gridlines (every 10 cells) and outer border
+    // Major gridlines (every 5 cells) and outer border
     ctx.strokeStyle = '#1f2937';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    for (let i = 0; i <= gridSize; i += 10) {
+    for (let i = 0; i <= gridSize; i += 5) {
       const p = AXIS_MARGIN + i * cellSize + 0.5;
       ctx.moveTo(AXIS_MARGIN, p);
       ctx.lineTo(AXIS_MARGIN + chartPx, p);
